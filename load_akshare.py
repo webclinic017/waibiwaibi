@@ -46,7 +46,7 @@ def get_list_a(cursor):
     return list_code
 
 
-def load_basic(cursor, start, end):
+def load_basic(sql, cursor, start, end):
     list_code = get_list_a(cursor)
     for progress in tqdm(range(0, len(list_code))):
         code = list_code[progress]
@@ -94,13 +94,15 @@ def load_basic(cursor, start, end):
                 insert(cursor, table_code_day, 'date, price, rate, exchange_rate',
                        list_to_str([list_date[i], list_price[i], list_rate[i], list_exchange_rate[i]]))
 
+        sql.commit()
+
 
 if __name__ == '__main__':
     sql = sqlite3.connect(dir_sql)
     cursor = sql.cursor()
 
     load_stock_a(cursor)
-    load_basic(cursor, '20170101', '20211031')
+    load_basic(sql, cursor, '20100101', '20211031')
 
     sql.commit()
     sql.close()
