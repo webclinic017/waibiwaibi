@@ -39,10 +39,12 @@ if __name__ == '__main__':
     data = get_day(cursor, '000001', '2020-01-01', period=100, day_before=5)
     model = ma(data, 5)
     print(len({i: data[i][5:] for i in data}['date']))
-    data['money'], data['ratio'] = simulate({i: data[i][5:] for i in data}, model.strategy)
+    data['money'], data['ratio'] = simulate(data, 5, model.strategy)
     print(data['money'], data['ratio'])
 
     print(data)
+    for i in data:
+        print(i, ': ', len(data[i]))
     plot_date(data)
 
 

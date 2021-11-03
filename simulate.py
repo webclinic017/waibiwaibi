@@ -7,12 +7,14 @@ import matplotlib.pyplot as plt
 def simulate(data, frozen_days, strategy, strategy_data=None, ):
     money_change = []
     ratio_list = []
-    for day in range(0, len(data['date'])-1):
+    for day in range(0, len(data['date'])):
         if day < frozen_days:
-            
-        ratio = strategy(data, day, strategy_data)
-        ratio_list.append(ratio)
-        money_change.append(ratio * lg(data['rate'][day+1]))
+            ratio_list.append(0)
+            money_change.append(0)
+        else:
+            ratio = strategy(data, day, strategy_data)
+            ratio_list.append(ratio)
+            money_change.append(ratio * lg(1+0.01*data['rate'][day]))
 
     money = []
     current = 0
