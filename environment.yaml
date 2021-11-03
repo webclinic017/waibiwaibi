@@ -41,6 +41,7 @@ dependencies:
     - kiwisolver==1.3.2
     - lxml==4.6.4
     - matplotlib==3.4.3
+    - mplfinance==0.12.7a17
     - openpyxl==3.0.9
     - pillow==8.4.0
     - py-mini-racer==0.6.0
