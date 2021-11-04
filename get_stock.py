@@ -5,13 +5,14 @@ import time
 import numpy as np
 import pandas as pd
 import sqlite3
+from math import log10 as lg
 
 
 dir_sql = 'stock_data.db'
 date_today = time.strftime("%Y-%m-%d", time.localtime())
 
 
-def get_day(cursor, code, date_start, date_end='', period=0, day_before=0):
+def get_day(cursor, code, date_start, date_end='', period=0, day_before=0, adjust = True):
     if date_end == '' and period == 0:
         print('input wrong')
         return None
@@ -21,6 +22,7 @@ def get_day(cursor, code, date_start, date_end='', period=0, day_before=0):
                      where date <= "{date_start}"')
     index_start = cursor.fetchall()[0][0]
     if index_start < day_before:
+        print('too early')
         return None
     start_point = index_start - day_before
     offset = day_before
@@ -51,11 +53,21 @@ def get_day(cursor, code, date_start, date_end='', period=0, day_before=0):
         for info in table_info:
             res[info[1]].append(row[info[0]])
 
+    total_rate_lg = 0
+    res['rate_lg'] = [0]
+    res['price_std_lg'] = [0]
+    for day in range(1, len(res['date'])):
+        rate = res['rate'][day]
+        rate_lg = lg(1 + 0.01 * rate)
+        total_rate_lg += rate_lg
+        res['rate_lg'].append(rate_lg)
+        res['price_std_lg'].append(total_rate_lg)
+        if adjust:
+            res['price'][day] = res['price'][0] * (10 ** total_rate_lg)
+
     return res
 
 
-# def data_slice(data, limit):
-#     pass
 
 
 if __name__ == '__main__':

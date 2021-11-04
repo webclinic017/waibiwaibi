@@ -70,12 +70,10 @@ def load_basic(sql, cursor, start, end):
         if state_flag:
             continue
 
-
 #        日期     开盘     收盘     最高  ...    振幅   涨跌幅   涨跌额   换手率
 # 0 2017-03-01   9.49    9.49    9.55  ...   0.84    0.11   0.01    0.21
 # 1 2017-03-02   9.51    9.43    9.54  ...   1.26   -0.63  -0.06    0.24
 # 2 2017-03-03   9.41    9.40    9.43  ...   0.74   -0.32  -0.03    0.20
-
 
         table_code_day = f'day_{code}'
         create_table(cursor, table_code_day)
