@@ -47,7 +47,7 @@ if __name__ == '__main__':
     data = get_day(cursor, '000001', '2015-01-01', date_end='2021-01-01', day_before=model.frozen_days())
     data.update(model.indicator_generate(data))
     # print(len({i: data[i][5:] for i in data}['date']))
-    data.update(simulate(data, 5, model.strategy))
+    data.update(simulate(data, model.strategy, frozen_days=model.frozen_days()))
     # print(data['money'], data['ratio'])
 
     # print(data)

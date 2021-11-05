@@ -48,7 +48,7 @@ def get_list_a(cursor):
 
 def load_basic(sql, cursor, start, end):
     list_code = get_list_a(cursor)
-    for progress in tqdm(range(0, len(list_code))):
+    for progress in tqdm(range(2485, len(list_code))):
         code = list_code[progress]
 
         state_flag = 0
