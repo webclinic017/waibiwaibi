@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 import akshare as ak
 
-from mak_sqlite import create_table, insert, add_column, select, list_to_str, list_to_str_no_quote
+from mak_sqlite import create_table, insert, insert_not_repeat, add_column, select, list_to_str, list_to_str_no_quote
 
 
 dir_sql = 'stock_data_ak.db'
@@ -36,7 +36,7 @@ def load_stock_a(cursor):
     list_name = np.array(stock_zh_a_spot_em_df.iloc[0:, 2]).tolist()
 
     for i in range(0, len(list_code)):
-        insert(cursor, table_list_a, 'code, name', list_to_str([list_code[i], list_name[i]]))
+        insert(cursor, table_list_a, ['code', 'name'], [list_code[i], list_name[i]])
 
 
 def get_list_a(cursor):
@@ -89,8 +89,8 @@ def load_basic(sql, cursor, start, end):
 
         for i in range(0, len(list_date)):
             if list_price[i]:
-                insert(cursor, table_code_day, 'date, price, rate, exchange_rate',
-                       list_to_str([list_date[i], list_price[i], list_rate[i], list_exchange_rate[i]]))
+                insert(cursor, table_code_day, ['date', 'price', 'rate', 'exchange_rate'],
+                       [list_date[i], list_price[i], list_rate[i], list_exchange_rate[i]])
 
         sql.commit()
 
@@ -100,7 +100,7 @@ if __name__ == '__main__':
     cursor = sql.cursor()
 
     load_stock_a(cursor)
-    load_basic(sql, cursor, '20100101', '20211031')
+    load_basic(sql, cursor, '20000101', '20211031')
 
     sql.commit()
     sql.close()
