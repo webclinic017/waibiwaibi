@@ -67,6 +67,13 @@ def select(cursor, item: str, table: str, condition: str):
     return cursor.fetchall()
 
 
+def table_info(cursor, table: str):
+    cursor.execute(f'pragma table_info({table})')
+    table_info = cursor.fetchall()
+    return table_info
+
+
+
 def list_to_str(l: list):
     return str(l).strip('[').strip(']')
 

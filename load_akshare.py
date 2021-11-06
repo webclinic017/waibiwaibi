@@ -17,8 +17,13 @@ import akshare as ak
 from mak_sqlite import create_table, insert, insert_not_repeat, add_column, select, list_to_str, list_to_str_no_quote
 
 
-dir_sql = 'stock_data_ak.db'
 table_list_a = 'stock_list_a'
+
+# database format:
+# id,   date,         price,   exchange_rate,   ...
+# 0,    2017-03-01,   9.49,    0.21,            ...
+# 1,    2017-03-02,   9.43,    0.24,            ...
+# 2,    2017-03-03,   9.40,    0.20,            ...
 
 
 def load_stock_a(cursor):
@@ -48,7 +53,7 @@ def get_list_a(cursor):
 
 def load_basic(sql, cursor, start, end):
     list_code = get_list_a(cursor)
-    for progress in tqdm(range(2485, len(list_code))):
+    for progress in tqdm(range(0, len(list_code))):
         code = list_code[progress]
 
         state_flag = 0
@@ -95,13 +100,19 @@ def load_basic(sql, cursor, start, end):
         sql.commit()
 
 
-if __name__ == '__main__':
+def run():
+    dir_sql = 'stock_data_ak_test.db'
     sql = sqlite3.connect(dir_sql)
     cursor = sql.cursor()
 
     load_stock_a(cursor)
-    load_basic(sql, cursor, '20000101', '20211031')
+    load_basic(sql, cursor, '20150401', '20150501')
 
     sql.commit()
     sql.close()
+
+
+if __name__ == '__main__':
+    run()
+
 
