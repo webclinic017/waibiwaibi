@@ -22,8 +22,7 @@ import matplotlib.dates as mdates
 #                      ],
 #                      ...,
 #                     ],
-#          strat
-#          3egy: [
+#          strategy: [
 #                     [name: str,
 #                      ratio: [double],
 #                      money: [double],
@@ -36,18 +35,62 @@ import matplotlib.dates as mdates
 #        }
 
 
-def simulate(data, strategy, strategy_data=None, frozen_days=1):
-    res = {'ratio': [], 'money_change_lg': [], 'money': [], 'money_lg': []}
-    for day in range(0, len(data['date']) - 1):
-        if day < frozen_days:
-            res['ratio'].append(0)
-            res['money_change_lg'].append(0)
-        else:
-            ratio = strategy(data, day, strategy_data)
-            res['ratio'].append(ratio)
-            res['money_change_lg'].append(ratio * data['rate_lg'][day + 1])
-    res['ratio'].append(res['ratio'][-1])
-    res['money_change_lg'].append(res['money_change_lg'][-1])
+def data_slice(data: dict, start: int, end: int):
+    res = {}
+    dont_slice = ['id', 'frozen_days', 'date', 'indicator', 'strategy']
+    for name in data:
+        if name not in dont_slice:
+            res[name] = data[name][start:end]
+
+
+def name_index(data: dict, name: str):
+    for i in range(0, len(data)):
+        if data[i]['name'] == name:
+            return i
+    return -1
+
+
+def name_item(data: dict, name: str):
+    if name_index(data, name) == -1:
+        data.append({'name': name})
+        return data[-1]
+    else:
+        return data[name_index(data, name)]
+
+
+def indicator_generate(data: dict, indicator, name):
+    if 'indicator' not in data:
+        data['indicator'] = []
+    data['indicator'].append(_indicator_generate(data, indicator, name))
+
+
+def _indicator_generate(data: dict, indicator):
+    res = {'name': name, 'value': []}
+    name_index(data['indicator'], name)
+    for day in range(0, data['frozen_days']):
+        res['value'].append(0)
+    for day in range(data['frozen_days'], len(data['date'])):
+        res['value'].append(indicator(data_slice(data, day-data['frozen_days'], day)))
+
+
+def simulate(data: dict, name, strategy, strategy_data=None):
+    if 'strategy' not in data:
+        data['strategy'] = []
+    data['strategy'].append(_simulate(data, name, strategy, strategy_data))
+
+
+def _simulate(data: dict, name, strategy, strategy_data_prepare):
+    res = {'name': name, 'ratio': [], 'money_change_lg': [], 'money': [], 'money_lg': []}
+    for day in range(0, data['frozen_days'] + 1):
+        res['ratio'].append(0)
+        res['money_change_lg'].append(0)
+
+    total_change_lg = 0
+    for day in range(data['frozen_days'] + 1, len(data['date'])):
+
+        ratio = strategy(strategy_data_prepare(data, day))
+        res['ratio'].append(ratio)
+        res['money_change_lg'].append(ratio * data['rate_lg'][day])
 
     total_change_lg = 0
     for change in res['money_change_lg']:
@@ -93,9 +136,9 @@ def plot_date(data: dict):
 
     data['date'] = [datetime.strptime(x, '%Y-%m-%d') for x in data['date']]
 
-    axs[0].plot('date', 'price', data=data)
-    axs[0].plot('date', 'ma_long', data=data)
-    axs[0].plot('date', 'ma_short', data=data)
+    axs[0].plot('date', 'price_adjust', data=data)
+    for indicator in data['indicator']:
+        axs[0].plot(data['date'], indicator['value'])
 
     axs[1].plot('date', 'price_std_lg', data=data)
     axs[1].plot('date', 'money_lg', data=data)

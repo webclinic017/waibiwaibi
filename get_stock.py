@@ -13,74 +13,15 @@ from mak_sqlite import create_table, insert, insert_not_repeat, add_column, sele
 date_today = time.strftime("%Y-%m-%d", time.localtime())
 
 
-def get_day(cursor, code, date_start, date_end='', period=0, day_before=0, extra_item=['exchange_rate'], item_process=True):
-    res = {}
-
-    if date_end == '' and period == 0:
-        print('input wrong')
-        return None
-
-    cursor.execute(f'select count(*) from day_{code} \
-                     where date <= "{date_start}"')
-    index_start = cursor.fetchall()[0][0]
-    if index_start < day_before:
-        print('too early')
-        return None
-    start_point = index_start - day_before
-    offset = day_before
-
-    if date_end != '':
-        cursor.execute(f'select count(*) from day_{code} \
-                         where date <= "{date_end}"')
-        index_end = cursor.fetchall()[0][0]
-
-        if period > index_end - index_start or period == 0:
-            offset += index_end - index_start
-        else:
-            offset += period
-    elif period > 0:
-        offset += period
-
-    cursor.execute(f'pragma table_info(day_{code})')
-    # table_info format: [column num, column name, ...,]
-    columns = cursor.fetchall()
-    items = ['date', 'price', 'rate']
-    items.extend(extra_item)
-    item_info = []
-    for column in columns:
-        if column[1] in items:
-            item_info.append(column)
-
-    for info in item_info:
-        res[info[1]] = []
-
-    cursor.execute(f'select * from day_{code} \
-                     limit {start_point}, {offset}')
-    for row in cursor.fetchall():
-        for info in item_info:
-            res[info[1]].append(row[info[0]])
-
-    total_rate_lg = 0
-    res['rate_lg'] = [0.0]
-    res['price_std_lg'] = [0]
-    res['price_adjust'] = [res['price'][0]]
-    for day in range(1, len(res['date'])):
-        rate = res['rate'][day]
-        rate_lg = lg(1 + 0.01 * rate)
-        total_rate_lg += rate_lg
-        res['rate_lg'].append(rate_lg)
-        res['price_std_lg'].append(total_rate_lg)
-        res['price_adjust'].append(res['price'][0] * (10 ** total_rate_lg))
-
-    res['price_adjust'] = [x*res['price'][day_before] for x in res['price_adjust']]
-    std = res['price_std_lg'][day_before]
-    res['price_std_lg'] = [x-std for x in res['price_std_lg']]
+def get_day(cursor, code, date_start, date_end='', period=0, frozen_days=0):
+    res = get_day_raw(cursor, code, date_start, date_end, period, frozen_days)
+    res.update(day_data_process(res))
 
     return res
 
 
-def get_day_raw(cursor, code, date_start, date_end='', period=0, day_before=0):
-    res = {}
+def get_day_raw(cursor, code: str, date_start: str, date_end='', period=0, frozen_days=0):
+    res = {'code': code, 'frozen_days': frozen_days}
 
     column_info = table_info(cursor, f'day_{code}')
     column_names = []
@@ -89,55 +30,62 @@ def get_day_raw(cursor, code, date_start, date_end='', period=0, day_before=0):
         column_names.append(column[1])
         column_indexs.append(column[0])
 
-    cursor.execute(f'select * from day_{code} \
-                     order by date(date)')
+    select(cursor, '*', f'day_{code}', 'order by date(date)')
     all_data = cursor.fetchall()
+    print(all_data[:5])
+
+    index_start = -1
+    index_end = -1
+    for i in range(0, len(all_data)):
+        if all_data[i][column_indexs[column_names.index('date')]] >= date_start:
+            index_start = i
+            break
+    if date_end:
+        for i in range(0, len(all_data)):
+            if all_data[i][column_indexs[column_names.index('date')]] >= date_end:
+                index_end = i-1
+                break
+    elif period > 0:
+        index_end = index_start + period
+    if index_start == -1 or index_end == -1 or index_start-frozen_days < 0 or index_end >= len(all_data):
+        print(f'database dont have data in: {date_start} - {date_end}, period: {period}, day_before: {frozen_days}')
+        return None
+
+    index_start -= frozen_days
 
     for i in range(0, len(column_names)):
-        res[f'{column_names[i]}'] = []
+        if column_names[i] == 'rate':
+            res[column_names[i]] = [line[column_indexs[i]] * 0.01 for line in all_data[index_start:index_end]]
+        elif column_names[i] != 'id':
+            # print(i, column_names[i], index_start, index_end, column_indexs[i])
+            res[column_names[i]] = [line[column_indexs[i]] for line in all_data[index_start:index_end]]
 
-    # if date_end == '' and period == 0:
-    #     print('both end date and period is not defined')
-    #     return None
-    #
-    # cursor.execute(f'select count(*) from day_{code} \
-    #                  where date <= "{date_start}"')
-    # index_start = cursor.fetchall()[0][0]
-    # if index_start < day_before:
-    #     print('too early')
-    #     return None
-    # start_point = index_start - day_before
-    # offset = day_before
-    #
-    # if date_end != '':
-    #     cursor.execute(f'select count(*) from day_{code} \
-    #                          where date <= "{date_end}"')
-    #     index_end = cursor.fetchall()[0][0]
-    #
-    #     if period > index_end - index_start or period == 0:
-    #         offset += index_end - index_start
-    #     else:
-    #         offset += period
-    # elif period > 0:
-    #     offset += period
-    # cursor.execute(f'pragma table_info(day_{code})')
-    # table_info = cursor.fetchall()
-    # # info: [column num, column name,
-    #
-    # for info in table_info:
-    #     res[info[1]] = []
-    #
-    # cursor.execute(f'select * from day_{code} \
-    #                  limit {start_point}, {offset}')
-    # for row in cursor.fetchall():
-    #     for info in table_info:
-    #         res[info[1]].append(row[info[0]])
-    #
-    # return res
+    return res
+
+
+def day_data_process(data: dict):
+    res = {}
+    total_rate_lg = 0
+    res['rate_lg'] = [0]
+    res['price_std_lg'] = [0]
+    res['price_adjust'] = [1]
+    for day in range(1, len(data['date'])):
+        rate_lg = lg(1 + data['rate'][day])
+        total_rate_lg += rate_lg
+        res['rate_lg'].append(rate_lg)
+        res['price_adjust'].append(10 ** total_rate_lg)
+        res['price_std_lg'].append(total_rate_lg)
+
+    std = data['price'][data['frozen_days']] / res['price_adjust'][data['frozen_days']]
+    res['price_adjust'] = [x * std for x in res['price_adjust']]
+    std = res['price_std_lg'][data['frozen_days']]
+    res['price_std_lg'] = [x - std for x in res['price_std_lg']]
+
+    return res
 
 
 def run():
-    dir_sql = 'stock_data_ak_test.db'
+    dir_sql = 'stock_data_ak.db'
     sql = sqlite3.connect(dir_sql)
     cursor = sql.cursor()
 
@@ -152,7 +100,7 @@ def run():
     # for row in cursor.fetchall():
     #     print(row)
 
-    get_day_raw(cursor, '603808', '2015-04-01', '2015-06-01')
+    get_day_raw(cursor, '000001', '2015-04-01', '2015-06-01')
 
     sql.close()
 

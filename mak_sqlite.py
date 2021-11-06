@@ -62,7 +62,7 @@ def add_column(cursor, table: str, column: str, type: str):
 
 
 def select(cursor, item: str, table: str, condition: str):
-    print(f'select {item} from {table} {condition}')
+    # print(f'select {item} from {table} {condition}')
     cursor.execute(f'select {item} from {table} {condition}')
     return cursor.fetchall()
 
