@@ -9,19 +9,31 @@ import matplotlib.dates as mdates
 
 
 # data dict format:
-# data: [
+# data: {
 #         code: str,
-#         date: [str],
 #         frozen_days: int,
-#         stock: [
-#                  price: [double],
-#                  rate: [double],
-#                  ...], (get and process from database)
+#         date: [str],
+#         price: [double],
+#         rate: [double],
+#         ..., (get and process from database)
 #         indicator: [
-#                      ma: []
+#                      [name: str,
+#                       value: [],
+#                      ],
+#                      ...,
+#                     ],
+#          strat
+#          3egy: [
+#                     [name: str,
+#                      ratio: [double],
+#                      money: [double],
+#                      ...,
+#                     ],
+#                     ...,
+#                    ],
 #
 #
-#
+#        }
 
 
 def simulate(data, strategy, strategy_data=None, frozen_days=1):

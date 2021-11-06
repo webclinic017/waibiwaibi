@@ -93,8 +93,8 @@ def get_day_raw(cursor, code, date_start, date_end='', period=0, day_before=0):
                      order by date(date)')
     all_data = cursor.fetchall()
 
-    print(all_data)
-
+    for i in range(0, len(column_names)):
+        res[f'{column_names[i]}'] = []
 
     # if date_end == '' and period == 0:
     #     print('both end date and period is not defined')
