@@ -1,0 +1,54 @@
+
+neat stock trading system consists of 3 stages:
+1. stock pool selecting
+2. total money ratio control
+3. stocks ratio weight confirming
+4. daily single stocks money ratio evaluating
+5. in day realtime stock trading
+
+
+total_money = xxx
+stock_list = get_all_stock_name()
+for month/season/year:
+    stock_pool = pool_select(genome(genome_pool_selecting), stock_list, stock_evaluate_func)
+    stock_data = get_stock_data(stock_pool)
+
+    total_ratio = risk_control(genome(genome_risk_controling), stock_data)
+
+    stock_weights = weight_confirm(genome(genome_weight_confirming), stock_data)
+
+    money_for_each_stock = total_money * total_ratio * stock_weights
+    stock_status = map(stock_status_init, money_for_each_stock)
+    stock_changes_monthly =  stock_status_last_month
+    for day:
+        stock_ratios = ratio_evaluate(genome(genome_ratio_evaluate), stock_data)
+        ratio_changes = stock_ratios - stock_ratios_yesterday
+
+        share_change_task = share_change_compute(stock_status, ratio_changes)
+        for second/minute:
+            stock_data_explicit = get_stock_data_explicit(stock_pool)
+            share_changes = stock_trade(genome(genome_stock_trading), stock_data_explicit, share_change_task)
+            orders = create_order(share_changes, stock_status, share_change_task)
+            trade_simulate(stock_status, orders)
+
+            record_in_day(stock_status, month, day, minute)
+        record_day(stock_status, month, day)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -73,6 +73,11 @@ def table_info(cursor, table: str):
     return table_info
 
 
+def table_list(cursor):
+    res = cursor.execute(f'select name from sqlite_master')
+    res = [x[0] for x in res]
+    return res
+
 
 def list_to_str(l: list):
     return str(l).strip('[').strip(']')

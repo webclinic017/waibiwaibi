@@ -7,17 +7,30 @@ import pandas as pd
 import sqlite3
 from math import log10 as lg
 
-from mak_sqlite import create_table, insert, insert_not_repeat, add_column, select, table_info, list_to_str, list_to_str_no_quote
+from mak_sqlite import create_table, insert, insert_not_repeat, add_column, select, table_info, list_to_str, list_to_str_no_quote, table_list
 
 
 date_today = time.strftime("%Y-%m-%d", time.localtime())
 
 
-def get_day(cursor, code, date_start, date_end='', period=0, frozen_days=0):
-    res = get_day_raw(cursor, code, date_start, date_end, period, frozen_days)
-    res.update(day_data_process(res))
+def get_code_list(cursor):
+    code_list = select(cursor, 'code', 'stock_list_a', '')
+    code_list = [x[0] for x in code_list]
+    return code_list
 
-    return res
+
+def get_day(cursor, code, date_start, date_end='', period=0, frozen_days=0):
+    table_exist = table_list(cursor)
+    if f'day_{code}' not in table_exist:
+        return None
+
+    res = get_day_raw(cursor, code, date_start, date_end, period, frozen_days)
+    if res is None:
+        return None
+    else:
+        res.update(day_data_process(res))
+
+        return res
 
 
 def get_day_raw(cursor, code: str, date_start: str, date_end='', period=0, frozen_days=0):
@@ -30,9 +43,8 @@ def get_day_raw(cursor, code: str, date_start: str, date_end='', period=0, froze
         column_names.append(column[1])
         column_indexs.append(column[0])
 
-    select(cursor, '*', f'day_{code}', 'order by date(date)')
-    all_data = cursor.fetchall()
-    print(all_data[:5])
+    all_data = select(cursor, '*', f'day_{code}', 'order by date(date)')
+    # print(all_data[:5])
 
     index_start = -1
     index_end = -1
@@ -48,7 +60,9 @@ def get_day_raw(cursor, code: str, date_start: str, date_end='', period=0, froze
     elif period > 0:
         index_end = index_start + period
     if index_start == -1 or index_end == -1 or index_start-frozen_days < 0 or index_end >= len(all_data):
-        print(f'database dont have data in: {date_start} - {date_end}, period: {period}, day_before: {frozen_days}')
+        # print(f'database dont have data of {code} in: {date_start} - {date_end}, period: {period}, day_before: {frozen_days}')
+        # print(index_start == -1, index_end == -1, index_start-frozen_days < 0, index_end >= len(all_data))
+        # print(len(all_data), index_end)
         return None
 
     index_start -= frozen_days
@@ -101,6 +115,8 @@ def run():
     #     print(row)
 
     get_day_raw(cursor, '000001', '2015-04-01', '2015-06-01')
+
+    # print(table_list(cursor))
 
     sql.close()
 
