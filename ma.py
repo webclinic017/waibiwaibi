@@ -10,7 +10,7 @@ import akshare as ak
 import mplfinance as mpf
 
 from get_stock import get_day
-from simulate import indicator_generate, simulate, simulate_realistic, plot_date, name_item, object_indicator, object_strategy, name_index
+from trade_simulate import indicator_generate, simulate, simulate_realistic, plot_date, name_item, object_indicator, object_strategy, name_index
 
 
 class ma(object_indicator, object_strategy):

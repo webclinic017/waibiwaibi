@@ -17,17 +17,19 @@ import matplotlib.dates as mdates
 #         rate: [float],
 #         ..., (get and process from database)
 #         indicator: [
-#                      [name: str,
+#                      {name: str,
 #                       value: [float],
 #                      ],
 #                      ...,
-#                     ],
+#                     },
 #          strategy: [
-#                     [name: str,
+#                     {name: str,
 #                      ratio: [float],
 #                      money: [float],
+#                      money_lg: [float],
+#                      money_change_lg: [float],
 #                      ...,
-#                     ],
+#                     },
 #                     ...,
 #                    ],
 #
@@ -57,6 +59,13 @@ class object_strategy:
 
     def strategy(self, strategy_data: dict):
         return 0
+
+
+def data_keys(data: dict):
+    keys = list(data.keys())
+    if 'indicator' in data.keys():
+        keys.extend([x['name'] for x in data['indicator']])
+    return keys
 
 
 def data_slice(data: dict, start: int, end: int):
@@ -94,7 +103,7 @@ def name_item(data: dict, name: str):
 
 
 def indicator_generate(data: dict, indicator: object_indicator):
-    if 'indicator' not in data:
+    if 'indicator' not in data.keys():
         data['indicator'] = []
     if name_index(data['indicator'], indicator.get_name()) == -1:
         data['indicator'].append(_indicator_generate(data, indicator))
@@ -134,7 +143,7 @@ def _simulate(data: dict, strategy: object_strategy):
     for change in res['money_change_lg']:
         total_change_lg += change
         res['money_lg'].append(total_change_lg)
-        res['money'].append(10 ** total_change_lg - 1)
+        res['money'].append(10 ** total_change_lg)
 
     return res
 
@@ -160,7 +169,7 @@ def simulate_realistic(data, strategy, strategy_data=None, frozen_days=1, commis
     for change_lg in res['money_change_lg']:
         total_change_lg += change_lg
         res['money_lg'].append(total_change_lg)
-        res['money'].append(10 ** total_change_lg - 1)
+        res['money'].append(10 ** total_change_lg)
 
     return res
 
