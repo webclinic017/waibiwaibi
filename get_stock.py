@@ -19,6 +19,18 @@ def get_code_list(cursor):
     return code_list
 
 
+def get_code_list_hs300(cursor, start_day=date_today):
+    # code_list = select(cursor, 'code', 'index_list_000300', f'where start <= {start_day}') + select(cursor, 'code', 'index_list_sh000300_history', f'where start <= {start_day}')
+    res = []
+    code_list = select(cursor, '*', 'index_list_000300', f'') + select(cursor, '*', 'index_list_sh000300_history', f'')
+    for i in range(0, len(code_list)):
+        stock = code_list[i]
+        if stock[2] <= start_day:
+            res.append(stock[1])
+
+    return res
+
+
 def get_day(cursor, code, date_start, date_end='', period=0, frozen_days=0):
     table_exist = table_list(cursor)
     if f'day_{code}' not in table_exist:
@@ -114,9 +126,12 @@ def run():
     # for row in cursor.fetchall():
     #     print(row)
 
-    get_day_raw(cursor, '000001', '2015-04-01', '2015-06-01')
+    # get_day_raw(cursor, '000001', '2015-04-01', '2015-06-01')
 
     # print(table_list(cursor))
+
+    hs300_list = get_code_list_hs300(cursor, '2010-01-01')
+    print(len(hs300_list))
 
     sql.close()
 

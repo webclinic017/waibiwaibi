@@ -2,7 +2,7 @@
 
 import sqlite3
 import time
-
+import multiprocessing
 import neat
 from tqdm import tqdm
 
@@ -10,6 +10,7 @@ import get_stock
 import trade_simulate
 from trade_simulate import indicator_generate, simulate, simulate_realistic, plot_date, name_item, object_indicator, object_strategy, name_index, data_keys
 from ma import ma
+import neat_visualize
 
 
 class neat_day(object_strategy):
@@ -55,13 +56,46 @@ class neat_day_evaler:
     def average_profit(self, genome, config):
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         net_strategy = neat_day('neat', net.activate, self.required_data)
-        fitness = []
+        profit_list= []
         for stock in self.available_data:
             result = trade_simulate._simulate(stock, net_strategy)
             profit = result['money'][-1]
-            fitness.append(profit)
-        total_fitness = sum(fitness) / len(fitness)
-        return total_fitness
+            profit_list.append(profit)
+        return sum(profit_list) / len(profit_list)
+
+    def simulate_result(self, genome, config, stock_data):
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
+        net_strategy = neat_day('neat', net.activate, self.required_data)
+        return trade_simulate._simulate(stock_data, net_strategy)
+
+
+class neat_day_evaler_multi_process(neat_day_evaler, object):
+    def __init__(self, available_data: list, required_data: list, num_workers: 1):
+        super().__init__(available_data, required_data)
+        self.num_workers = num_workers
+        self.pool = multiprocessing.Pool(num_workers)
+
+    def __call__(self, genomes, config):
+        jobs = []
+        for ignored_genome_id, genome in genomes:
+            jobs.append(self.pool.apply_async(self.average_profit, (genome, config)))
+
+        # assign the fitness back to each genome
+        for job, (ignored_genome_id, genome) in zip(jobs, genomes):
+            genome.fitness = job.get()
+
+    # def __del__(self):
+    #     self.pool.close()
+    #     self.pool.join()
+
+    def __getstate__(self):
+        self_dict = self.__dict__.copy()
+        del self_dict['pool']
+
+        return self_dict
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
 
 
 def run():
@@ -69,7 +103,8 @@ def run():
     sql = sqlite3.connect(dir_sql)
     cursor = sql.cursor()
 
-    stock_list = get_stock.get_code_list(cursor)
+    # stock_list = get_stock.get_code_list(cursor)
+    stock_list = get_stock.get_code_list_hs300(cursor, '2010-01-01')
     stock_list.sort()
     available_code = []
     available_data = []
@@ -87,25 +122,33 @@ def run():
     print(f'stock data for training is prepared, {len(available_code)} stocks in total')
     time.sleep(0.1)
 
-    evaler = neat_day_evaler(available_data, ['price_std_lg', 'rate_lg', 'ma5', 'ma20', 'ma60', 'exchange_rate'])
+    evaler = neat_day_evaler_multi_process(available_data, ['price_std_lg', 'rate_lg', 'ma5', 'ma20', 'ma60', 'exchange_rate'], multiprocessing.cpu_count())
 
     config_path = 'neat_config'
     config = neat.Config(neat.DefaultGenome, neat.DefaultReproduction,
                          neat.DefaultSpeciesSet, neat.DefaultStagnation,
                          config_path)
 
-    p = neat.Population(config)
+    # p = neat.Population(config)
+    p = neat.Checkpointer(1).restore_checkpoint('neat_train_log/basic_day_7_input_1106/neat-checkpoint-16')
 
     p.add_reporter(neat.StdOutReporter(True))
     stats = neat.StatisticsReporter()
     p.add_reporter(stats)
-    p.add_reporter(neat.Checkpointer(5))
+    p.add_reporter(neat.Checkpointer(5, filename_prefix='neat_train_log/basic_day_7_input_1107/epoch_'))
 
+    # pe = neat.ParallelEvaluator(multiprocessing.cpu_count(), evaler)
+    # winner = p.run(pe.evaluate, 300)
     winner = p.run(evaler, 300)
 
     print('\nBest genome:\n{!s}'.format(winner))
     print('\nOutput:')
     print(f'winner average profit: {evaler.average_profit(winner, config)}')
+
+    node_names = {-1: '1', -2: 'price_std_lg', -3: 'rate_lg', -4: 'ma5', -5: 'ma20', -6: 'ma60', -7: 'exchange_rate', 0: 'ratio'}
+    neat_visualize.draw_net(config, winner, True, node_names=node_names)
+    neat_visualize.plot_stats(stats, ylog=False, view=True)
+    neat_visualize.plot_species(stats, view=True)
 
     sql.close()
 

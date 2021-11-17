@@ -100,13 +100,54 @@ def load_basic(sql, cursor, start, end):
         sql.commit()
 
 
+def load_index_list(cursor, index_code):
+    index_stock_cons_df = ak.index_stock_cons(index=index_code)
+    # print(index_stock_cons_df)
+    del index_stock_cons_df['品种名称']
+    index_list = np.array(index_stock_cons_df.iloc[:, :]).tolist()
+    # print(index_list)
+
+    table_index_list = f'index_list_{index_code}'
+    create_table(cursor, table_index_list)
+    add_column(cursor, table_index_list, 'code', 'char(6)')
+    add_column(cursor, table_index_list, 'start', 'date')
+
+    for i in range(0, len(index_list)):
+        stock = index_list[i]
+        insert(cursor, table_index_list, ['code', 'start'], stock)
+
+
+def load_index_list_history(cursor, index_code):
+    stock_index_hist_df = ak.index_stock_hist(index=index_code)
+    index_list = np.array(stock_index_hist_df.iloc[:, :]).tolist()
+    # print(index_list)
+
+    table_index_list = f'index_list_{index_code}_history'
+    create_table(cursor, table_index_list)
+    add_column(cursor, table_index_list, 'code', 'char(6)')
+    add_column(cursor, table_index_list, 'start', 'date')
+    add_column(cursor, table_index_list, 'end', 'date')
+
+    for i in range(0, len(index_list)):
+        stock = index_list[i]
+        insert(cursor, table_index_list, ['code', 'start', 'end'], stock)
+
+
 def run():
-    dir_sql = 'stock_data_ak_test.db'
+    dir_sql = 'stock_data_ak.db'
     sql = sqlite3.connect(dir_sql)
     cursor = sql.cursor()
 
-    load_stock_a(cursor)
-    load_basic(sql, cursor, '20150401', '20150501')
+    # load_stock_a(cursor)
+    # load_basic(sql, cursor, '20150401', '20150501')
+
+    # stock_index_hist_df = hs300_list_history()
+
+    load_index_list(cursor, '000300')
+    load_index_list_history(cursor, 'sh000300')
+
+    # print(get_index_list('sh000300'))
+    # print(hs300_list())
 
     sql.commit()
     sql.close()
