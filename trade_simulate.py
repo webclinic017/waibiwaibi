@@ -149,21 +149,21 @@ def _simulate(data: dict, strategy: object_strategy):
 
 
 def simulate_realistic(data, strategy, strategy_data=None, frozen_days=1, commision_buy=0.0005, commision_sell=0.0015):
-    res = {'ratio': [], 'money_change_lg': [], 'money': [], 'money_lg': [], 'commision': []}
+    res = {'ratio': [], 'money_change_lg': [], 'money': [], 'money_lg': [], 'commission': []}
     for day in range(0, len(data['date'])):
         if day < frozen_days:
             res['ratio'].append(0)
             res['money_change_lg'].append(0)
-            res['commision'].append(0)
+            res['commission'].append(0)
         else:
             ratio = strategy(data, day, strategy_data)
             res['ratio'].append(ratio)
             ratio_change = res['ratio'][day] - res['ratio'][day - 1]
             if ratio_change > 0:
-                res['commision'].append(ratio_change * lg(1 + commision_buy))
+                res['commission'].append(ratio_change * lg(1 + commision_buy))
             else:
-                res['commision'].append(-ratio_change * lg(1 + commision_sell))
-            res['money_change_lg'].append(ratio * (data['rate_lg'][day] + res['commision'][day]))
+                res['commission'].append(-ratio_change * lg(1 + commision_sell))
+            res['money_change_lg'].append(ratio * (data['rate_lg'][day] + res['commission'][day]))
 
     total_change_lg = 0
     for change_lg in res['money_change_lg']:

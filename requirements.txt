@@ -1,4 +1,4 @@
-akshare==1.1.98
+akshare==1.2.30
 backtrader==1.9.76.123
 beautifulsoup4==4.10.0
 Bottleneck==1.3.2
