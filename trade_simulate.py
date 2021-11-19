@@ -7,6 +7,7 @@ from math import log10 as lg
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
+import mak_stock_identifier as si
 
 # data dict format:
 # data: {
@@ -100,6 +101,17 @@ def name_item(data: dict, name: str):
         return None
     else:
         return data[index]
+
+
+def find_data_name(data, name: str):
+    if name in data.keys():
+        return data[name]
+    elif name_item(data[si.indicator], name):
+        return name_item(data[si.indicator], name)[si.value]
+    elif name_item(data[si.strategy], name):
+        return name_item(data[si.strategy], name)[si.value]
+    else:
+        return None
 
 
 def indicator_generate(data: dict, indicator: object_indicator):

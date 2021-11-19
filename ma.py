@@ -9,8 +9,32 @@ from matplotlib import pyplot as plt
 import akshare as ak
 import mplfinance as mpf
 
+import trade_simulate
 from get_stock import get_day
 from trade_simulate import indicator_generate, simulate, simulate_realistic, plot_date, name_item, object_indicator, object_strategy, name_index
+import mak_stock_identifier as si
+
+
+class ma_of(object_indicator):
+    def __init__(self, name, data_name, ma_day):
+        self.name = name
+        self.data_name = data_name
+        self.ma_day = ma_day
+
+    def get_name(self):
+        return self.name
+
+    def frozen_days(self):
+        return self.ma_day-1
+
+    def indicator_data_prepare(self, data: dict, day):
+        if trade_simulate.find_data_name(data, self.data_name) is None:
+            print(f'data dont have item called {self.data_name}')
+            exit(0)
+        return {'value': trade_simulate.find_data_name(data, self.data_name)[day-self.frozen_days():day+1]}
+
+    def indicator(self, indicator_data: dict):
+        return sum(indicator_data['value']) / self.ma_day
 
 
 class ma(object_indicator, object_strategy):
