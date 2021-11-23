@@ -20,4 +20,17 @@ money_lg = 'money_lg'
 money = 'money'
 commission = 'commission'
 
+start_date = 'start_date'
+end_date = 'end_date'
+stock_info_list = 'stock_info_list'
+indicator_list = 'indicator_list'
+
+
+
+
+
+
+
+
+
 

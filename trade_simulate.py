@@ -114,6 +114,22 @@ def find_data_name(data, name: str):
         return None
 
 
+# indicator list form:
+# [
+#   [object_indicator, name, ...],
+#   ...
+# ]
+
+
+def indicator_generate_batch(data, indicators: list):
+    for i in indicators:
+        indicator_generate(data, i[0](*i[1:]))
+
+
+def indicator_batch_names(indicators: list):
+    return [x[1] for x in indicators]
+
+
 def indicator_generate(data: dict, indicator: object_indicator):
     if 'indicator' not in data.keys():
         data['indicator'] = []
