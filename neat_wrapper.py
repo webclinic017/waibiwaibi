@@ -30,7 +30,7 @@ class neat_logger(BaseReporter):
 
         dir_save = self.logger.checkpoint(self.suffix)
         if dir_save:
-            self.save_checkpoint(dir_save, population, species_set)
+            self.save_checkpoint(dir_save, config, population, species_set)
 
     def save_checkpoint(self, filename, config, population, species_set):
         with gzip.open(filename, 'w', compresslevel=5) as f:
