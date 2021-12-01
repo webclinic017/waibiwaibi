@@ -88,7 +88,8 @@ def data_slice(data: dict, start: int, end: int):
 
     for strat in res[si.strategy]:
         for item in strat:
-            strat[item] = strat[item][start:end]
+            if type(strat[item]) == type([0]):
+                strat[item] = strat[item][start:end]
 
     return res
 
@@ -237,6 +238,19 @@ def _simulate_realistic(data, strategy, strategy_data=None, frozen_days=1, commi
         res[si.money_lg].append(total_change_lg)
         res[si.money].append(10 ** total_change_lg)
 
+    res[si.max_drawdown] = max_drawdown(res[si.money])
+
+    return res
+
+
+def max_drawdown(money_list):
+    res = 0
+    money_max = money_list[0]
+    for money in money_list:
+        if money > money_max:
+            money_max = money
+        elif 1 - money / money_max > res:
+            res = 1 - money / money_max
     return res
 
 
@@ -281,7 +295,6 @@ def plot_date(data: dict):
     for i in range(0, len(data[si.strategy])):
         ax = axs[strategy_window_range[i]]
         ax.plot(data[si.date], data[si.price_std_lg], label=si.price_std_lg)
-        print(data[si.strategy][i].keys())
         ax.plot(data[si.date], data[si.strategy][i][si.money_lg], label=data[si.strategy][i][si.name])
         ax_ratio = ax.twinx()
         ax_ratio.plot(data[si.date], data[si.strategy][i][si.ratio], label=si.ratio, drawstyle='steps-pre', linewidth='0.5')

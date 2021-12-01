@@ -20,6 +20,7 @@ money_change_lg = 'money_change_lg'
 money_lg = 'money_lg'
 money = 'money'
 commission = 'commission'
+max_drawdown = 'max_drawdown'
 
 start_date = 'start_date'
 end_date = 'end_date'

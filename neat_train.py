@@ -56,22 +56,33 @@ class neat_day_evaler:
 
     def __call__(self, genomes, config):
         for genome_id, genome in tqdm(genomes):
-            genome.fitness = self.average_profit(genome, config)
+            genome.fitness = self.average_profit_x_draw_down(genome, config)
 
     def average_profit(self, genome, config):
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         net_strategy = neat_day('neat', net.activate, self.required_data)
         profit_list = []
         for stock in self.available_data:
-            result = trade_simulate._simulate(stock, net_strategy)
+            result = trade_simulate._simulate_realistic(stock, net_strategy)
             profit = result['money'][-1]
             profit_list.append(profit)
         return sum(profit_list) / len(profit_list)
 
+    def average_profit_x_draw_down(self, genome, config):
+        net = neat.nn.FeedForwardNetwork.create(genome, config)
+        net_strategy = neat_day('neat', net.activate, self.required_data)
+        pxd_list = []
+        for stock in self.available_data:
+            result = trade_simulate._simulate_realistic(stock, net_strategy)
+            profit = result[si.money][-1]
+            max_drawdown = result[si.max_drawdown]
+            pxd_list.append(profit * (1-max_drawdown))
+        return sum(pxd_list) / len(pxd_list)
+
     def simulate_result(self, genome, config, stock_data):
         net = neat.nn.FeedForwardNetwork.create(genome, config)
         net_strategy = neat_day('neat', net.activate, self.required_data)
-        return trade_simulate._simulate(stock_data, net_strategy)
+        return trade_simulate._simulate_realistic(stock_data, net_strategy)
 
 
 class neat_day_evaler_multi_process(neat_day_evaler, object):
@@ -200,7 +211,7 @@ def generate_node_names_dict(stock_config):
 
 def run2():
     config_path = 'neat_config'
-    logger = neat_wrapper.neat_logger('basic_day_scaled_realistic_17_input_1201', 'neat_train_log')
+    logger = neat_wrapper.neat_logger('basic_day_scaled_realistic_pxd_17_input_1201', 'neat_train_log')
     logger.logger.file_backup(['neat_train.py', 'get_stock.py', 'trade_simulate.py', 'ma.py', 'mak_stock_identifier.py',
                                'neat_visualize.py', 'neat_wrapper.py', 'load_akshare.py', 'mak_sqlite.py', 'neat_config'])
     dir_sql = 'stock_data_ak.db'

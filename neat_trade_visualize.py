@@ -34,13 +34,13 @@ def run():
 
     gene_list = list(p.population.values())
     # print(gene_list[0])
-    print([x.fitness for x in gene_list])
+    # print([x.fitness for x in gene_list])
     for gene in gene_list:
         if not gene.fitness:
             gene.fitness = 0
     gene_list = sorted(gene_list, key=lambda x: x.fitness, reverse=True)
 
-    print([x.fitness for x in gene_list])
+    # print([x.fitness for x in gene_list])
     # print(gene_list[0])
 
     net = neat.nn.FeedForwardNetwork.create(gene_list[0], neat_config)
@@ -61,7 +61,8 @@ def run():
 
         print(available_code[i])
         print(f'money rate / lg: {data[si.strategy][0][si.money][-1]} / {data[si.strategy][0][si.money_lg][-1]}, \
-                commission cost lg: {sum(data[si.strategy][0][si.commission])}')
+                commission cost lg: {sum(data[si.strategy][0][si.commission])}, \
+                max drawdown rate: {data[si.strategy][0][si.max_drawdown]}')
         print()
         trade_simulate.plot_date(data)
 
