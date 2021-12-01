@@ -13,6 +13,7 @@ exchange_rate = 'exchange_rate'
 indicator = 'indicator'
 name = 'name'
 value = 'value'
+is_std = 'is_std'
 strategy = 'strategy'
 ratio = 'ratio'
 money_change_lg = 'money_change_lg'
@@ -24,6 +25,7 @@ start_date = 'start_date'
 end_date = 'end_date'
 stock_info_list = 'stock_info_list'
 indicator_list = 'indicator_list'
+
 
 
 

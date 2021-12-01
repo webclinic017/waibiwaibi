@@ -1,12 +1,14 @@
+
 import numpy as np
+import time
 from datetime import datetime
-from dateutil import rrule
 import pandas as pd
-# from pandas.plotting import
 from math import log10 as lg
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from tqdm import tqdm
 
+import get_stock
 import mak_stock_identifier as si
 
 # data dict format:
@@ -20,7 +22,8 @@ import mak_stock_identifier as si
 #         indicator: [
 #                      {name: str,
 #                       value: [float],
-#                      ],
+#                       std: bool,
+#                      },
 #                      ...,
 #                     },
 #          strategy: [
@@ -37,9 +40,13 @@ import mak_stock_identifier as si
 #
 #        }
 
+
 class object_indicator:
     def get_name(self):
         return ''
+
+    def is_std(self):
+        return False
 
     def frozen_days(self):
         return 0
@@ -64,22 +71,22 @@ class object_strategy:
 
 def data_keys(data: dict):
     keys = list(data.keys())
-    if 'indicator' in data.keys():
-        keys.extend([x['name'] for x in data['indicator']])
+    if si.indicator in data.keys():
+        keys.extend([x[si.name] for x in data[si.indicator]])
     return keys
 
 
 def data_slice(data: dict, start: int, end: int):
     res = data
-    dont_slice = ['code', 'frozen_days', 'indicator', 'strategy']
+    dont_slice = [si.code, si.frozen_days, si.indicator, si.strategy]
     for name in data:
         if name not in dont_slice:
             res[name] = res[name][start:end]
 
-    for indic in res['indicator']:
-        indic['value'] = indic['value'][start:end]
+    for indic in res[si.indicator]:
+        indic[si.value] = indic[si.value][start:end]
 
-    for strat in res['strategy']:
+    for strat in res[si.strategy]:
         for item in strat:
             strat[item] = strat[item][start:end]
 
@@ -114,7 +121,25 @@ def find_data_name(data, name: str):
         return None
 
 
-# indicator list form:
+def indicator_generate(data: dict, indicator: object_indicator):
+    if si.indicator not in data.keys():
+        data[si.indicator] = []
+    if name_index(data[si.indicator], indicator.get_name()) == -1:
+        data[si.indicator].append(_indicator_generate(data, indicator))
+
+
+def _indicator_generate(data: dict, indicator: object_indicator):
+    res = {si.name: indicator.get_name(), si.value: [], si.is_std: indicator.is_std()}
+    for day in range(0, data[si.frozen_days]):
+        res[si.value].append(0)
+    for day in range(data[si.frozen_days], len(data[si.date])):
+        prepare_data = indicator.indicator_data_prepare(data, day)
+        res[si.value].append(indicator.indicator(prepare_data))
+
+    return res
+
+
+# indicator list format:
 # [
 #   [object_indicator, name, ...],
 #   ...
@@ -130,102 +155,140 @@ def indicator_batch_names(indicators: list):
     return [x[1] for x in indicators]
 
 
-def indicator_generate(data: dict, indicator: object_indicator):
-    if 'indicator' not in data.keys():
-        data['indicator'] = []
-    if name_index(data['indicator'], indicator.get_name()) == -1:
-        data['indicator'].append(_indicator_generate(data, indicator))
+def stock_data_prepare(cursor, stock_list, stock_config):
+    available_code = []
+    available_data = []
+    print('start preparing stock data for training: ')
+    time.sleep(0.1)
+    for i in tqdm(range(0, len(stock_list))):
+        code = stock_list[i]
+        data = get_stock.get_day(cursor, code, stock_config[si.start_date], stock_config[si.end_date],
+                                 frozen_days=stock_config[si.frozen_days])
+        if data:
+            indicator_generate_batch(data, stock_config[si.indicator_list])
+            available_code.append(code)
+            available_data.append(data)
 
+    print(f'stock data for training is prepared, {len(available_code)} stocks in total')
+    time.sleep(0.1)
 
-def _indicator_generate(data: dict, indicator: object_indicator):
-    res = {'name': indicator.get_name(), 'value': []}
-    for day in range(0, data['frozen_days']):
-        res['value'].append(0)
-    for day in range(data['frozen_days'], len(data['date'])):
-        prepare_data = indicator.indicator_data_prepare(data, day)
-        res['value'].append(indicator.indicator(prepare_data))
-
-    return res
+    return available_code, available_data
 
 
 def simulate(data: dict, strategy: object_strategy):
-    if 'strategy' not in data:
-        data['strategy'] = []
-    if name_index(data['strategy'], strategy.get_name()) == -1:
-        data['strategy'].append(_simulate(data, strategy))
+    if si.strategy not in data:
+        data[si.strategy] = []
+    if name_index(data[si.strategy], strategy.get_name()) == -1:
+        data[si.strategy].append(_simulate(data, strategy))
 
 
 def _simulate(data: dict, strategy: object_strategy):
-    res = {'name': strategy.get_name(), 'ratio': [], 'money_change_lg': [], 'money': [], 'money_lg': []}
-    for day in range(0, data['frozen_days']):
-        res['ratio'].append(0)
-        res['money_change_lg'].append(0)
+    res = {si.name: strategy.get_name(), si.ratio: [], si.money_change_lg: [], si.money: [], si.money_lg: []}
+    for day in range(0, data[si.frozen_days]):
+        res[si.ratio].append(0)
+        res[si.money_change_lg].append(0)
 
-    for day in range(data['frozen_days'], len(data['date'])):
+    for day in range(data[si.frozen_days], len(data[si.date])):
         prepare_data = strategy.strategy_data_prepare(data, day)
         ratio = strategy.strategy(prepare_data)
-        res['ratio'].append(ratio)
-        res['money_change_lg'].append(res['ratio'][-2] * data['rate_lg'][day])
+        res[si.ratio].append(ratio)
+        res[si.money_change_lg].append(res[si.ratio][-2] * data[si.rate_lg][day])
 
     total_change_lg = 0
-    for change in res['money_change_lg']:
+    for change in res[si.money_change_lg]:
         total_change_lg += change
-        res['money_lg'].append(total_change_lg)
-        res['money'].append(10 ** total_change_lg)
+        res[si.money_lg].append(total_change_lg)
+        res[si.money].append(10 ** total_change_lg)
 
     return res
 
 
-def simulate_realistic(data, strategy, strategy_data=None, frozen_days=1, commision_buy=0.0005, commision_sell=0.0015):
-    res = {'ratio': [], 'money_change_lg': [], 'money': [], 'money_lg': [], 'commission': []}
-    for day in range(0, len(data['date'])):
-        if day < frozen_days:
-            res['ratio'].append(0)
-            res['money_change_lg'].append(0)
-            res['commission'].append(0)
+def simulate_realistic(data: dict, strategy: object_strategy):
+    if si.strategy not in data:
+        data[si.strategy] = []
+    if name_index(data[si.strategy], strategy.get_name()) == -1:
+        data[si.strategy].append(_simulate_realistic(data, strategy))
+
+
+def _simulate_realistic(data, strategy, strategy_data=None, frozen_days=1, commision_buy=0.0005, commision_sell=0.0015):
+    res = {si.name: strategy.get_name(), si.ratio: [], si.money_change_lg: [], si.money: [], si.money_lg: [], si.commission: []}
+
+    for day in range(0, data[si.frozen_days]):
+        res[si.ratio].append(0)
+        res[si.money_change_lg].append(0)
+        res[si.commission].append(0)
+
+    for day in range(data[si.frozen_days], len(data[si.date])):
+        prepare_data = strategy.strategy_data_prepare(data, day)
+        ratio = strategy.strategy(prepare_data)
+        res[si.ratio].append(ratio)
+        ratio_change = res[si.ratio][day] - res[si.ratio][day - 1]
+        if ratio_change > 0:
+            res[si.commission].append(ratio_change * lg(1 + commision_buy))
+        elif ratio_change < 0:
+            res[si.commission].append(-ratio_change * lg(1 + commision_sell))
         else:
-            ratio = strategy(data, day, strategy_data)
-            res['ratio'].append(ratio)
-            ratio_change = res['ratio'][day] - res['ratio'][day - 1]
-            if ratio_change > 0:
-                res['commission'].append(ratio_change * lg(1 + commision_buy))
-            else:
-                res['commission'].append(-ratio_change * lg(1 + commision_sell))
-            res['money_change_lg'].append(ratio * (data['rate_lg'][day] + res['commission'][day]))
+            res[si.commission].append(0)
+        res[si.money_change_lg].append(res[si.ratio][-2] * data[si.rate_lg][day] - res[si.commission][day])
 
     total_change_lg = 0
-    for change_lg in res['money_change_lg']:
-        total_change_lg += change_lg
-        res['money_lg'].append(total_change_lg)
-        res['money'].append(10 ** total_change_lg)
+    for change in res[si.money_change_lg]:
+        total_change_lg += change
+        res[si.money_lg].append(total_change_lg)
+        res[si.money].append(10 ** total_change_lg)
 
     return res
 
 
 def plot_date(data: dict):
-    data = data_slice(data, data['frozen_days'], len(data['date']))
+    data = data_slice(data, data[si.frozen_days], len(data[si.date]))
 
     fig = plt.figure(figsize=(12, 8))
 
-    strategy_amount = len(data['strategy'])
-    axs = [plt.subplot2grid((1 + strategy_amount, 1), (0, 0), colspan=1, rowspan=1)]
-    for i in range(0, strategy_amount):
-        axs.append(plt.subplot2grid((1 + strategy_amount, 1), (i+1, 0), colspan=1, rowspan=1))
+    indicator_window = 0
+    if True in [x[si.is_std] for x in data[si.indicator]]:
+        indicator_window = 1
+        for indic in data[si.indicator]:
+            if abs(np.mean(np.array(indic[si.value]))) > 1:
+                indicator_window = 2
+                break
+    strategy_amount = len(data[si.strategy])
+    window_amount = 1 + indicator_window + strategy_amount
+    indicator_window_range = range(1, 1+indicator_window)
+    strategy_window_range = range(1+indicator_window, 1+indicator_window+strategy_amount)
 
-    data['date'] = [datetime.strptime(x, '%Y-%m-%d') for x in data['date']]
+    axs = [plt.subplot2grid((window_amount, 1), (0, 0), colspan=1, rowspan=1)]
+    for i in indicator_window_range:
+        axs.append(plt.subplot2grid((window_amount, 1), (i, 0), colspan=1, rowspan=1))
+    for i in strategy_window_range:
+        axs.append(plt.subplot2grid((window_amount, 1), (i, 0), colspan=1, rowspan=1))
 
-    axs[0].plot('date', 'price_adjust', data=data)
-    for indicator in data['indicator']:
-        axs[0].plot(data['date'], indicator['value'])
+    data[si.date] = [datetime.strptime(x, '%Y-%m-%d') for x in data[si.date]]
 
-    for i in range(0, strategy_amount):
-        axs[i+1].plot(data['date'], data['price_std_lg'])
-        axs[i+1].plot(data['date'], data['strategy'][i]['money_lg'])
-        ax_ratio = axs[i+1].twinx()
-        ax_ratio.plot(data['date'],  data['strategy'][i]['ratio'], drawstyle='steps-pre', linewidth='0.5')
+    axs[0].plot(data[si.date], data[si.price_adjust], label=si.price_adjust)
+    for i in indicator_window_range:
+        axs[i].plot(data[si.date], data[si.price_std_lg], label=si.price_std_lg)
+    for indicator in data[si.indicator]:
+        if indicator[si.is_std]:
+            if abs(np.mean(np.array(indicator[si.value]))) > 1:
+                ax = axs[indicator_window_range[0]]
+            else:
+                ax = axs[indicator_window_range[-1]]
+        else:
+            ax = axs[0]
+        ax.plot(data[si.date], indicator[si.value], label=indicator[si.name])
+
+    for i in range(0, len(data[si.strategy])):
+        ax = axs[strategy_window_range[i]]
+        ax.plot(data[si.date], data[si.price_std_lg], label=si.price_std_lg)
+        print(data[si.strategy][i].keys())
+        ax.plot(data[si.date], data[si.strategy][i][si.money_lg], label=data[si.strategy][i][si.name])
+        ax_ratio = ax.twinx()
+        ax_ratio.plot(data[si.date], data[si.strategy][i][si.ratio], label=si.ratio, drawstyle='steps-pre', linewidth='0.5')
 
     for i in range(0, len(axs)):
         ax = axs[i]
+        ax.legend(ncol=2)
 
         datemin = np.datetime64(data['date'][0], 'Y')
         datemax = np.datetime64(data['date'][-1], 'Y') + np.timedelta64(1, 'Y')

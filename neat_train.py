@@ -12,7 +12,7 @@ import get_stock
 import trade_simulate
 from trade_simulate import indicator_generate, simulate, simulate_realistic, plot_date, name_item, object_indicator, \
     object_strategy, name_index, data_keys
-from ma import ma, ma_of
+from indicators import *
 import mak_stock_identifier as si
 import neat_visualize
 import neat_wrapper
@@ -181,37 +181,30 @@ def run():
     sql.close()
 
 
-def stock_data_prepare(dir_sql, stock_config):
-    sql = sqlite3.connect(dir_sql)
-    cursor = sql.cursor()
-    stock_list = get_stock.get_code_list_hs300(cursor, stock_config[si.start_date])
-    stock_list.sort()
-    available_code = []
-    available_data = []
-    print('start preparing stock data for training: ')
-    time.sleep(0.1)
-    for i in tqdm(range(0, len(stock_list))):
-        code = stock_list[i]
-        data = get_stock.get_day(cursor, code, stock_config[si.start_date], stock_config[si.end_date],
-                                 frozen_days=stock_config[si.frozen_days])
-        if data:
-            trade_simulate.indicator_generate_batch(data, stock_config[si.indicator_list])
-            available_code.append(code)
-            available_data.append(data)
-    sql.close()
-    print(f'stock data for training is prepared, {len(available_code)} stocks in total')
-    time.sleep(0.1)
+def generate_node_names_dict(stock_config):
+    node_names = ['1'] + stock_config[si.stock_info_list] + trade_simulate.indicator_batch_names(stock_config[si.indicator_list])
+    node_names_dict = {0: 'ratio'}
+    node_names_dict.update(dict(zip(range(-1, -len(node_names) - 1, -1), node_names)))
+    return node_names_dict
 
-    return available_code, available_data
+
+# stock_config format:
+#   {
+#       'start_date': str,
+#       'end_date': str,
+#       'frozen_days': int,
+#       'stock_info_lists': [str],
+#       'indicator_list': indicator_list,
+#   }
 
 
 def run2():
     config_path = 'neat_config'
-    logger = neat_wrapper.neat_logger('basic_day_15_input_1123', 'neat_train_log')
+    logger = neat_wrapper.neat_logger('basic_day_scaled_realistic_17_input_1201', 'neat_train_log')
     logger.logger.file_backup(['neat_train.py', 'get_stock.py', 'trade_simulate.py', 'ma.py', 'mak_stock_identifier.py',
                                'neat_visualize.py', 'neat_wrapper.py', 'load_akshare.py', 'mak_sqlite.py', 'neat_config'])
     dir_sql = 'stock_data_ak.db'
-    total_epoch = 500
+    total_epoch = 600
 
     if os.path.isfile(logger.logger.dir_backup_model):
         p = logger.load_population()
@@ -228,14 +221,16 @@ def run2():
                                            [ma_of, 'ma20', si.price_std_lg, 20],
                                            [ma_of, 'ma60', si.price_std_lg, 60],
                                            [ma_of, 'ma300', si.price_std_lg, 300],
-                                           [ma_of, 'exchange_ma5', si.exchange_rate, 5],
-                                           [ma_of, 'exchange_ma20', si.exchange_rate, 20],
-                                           [ma_of, 'exchange_ma60', si.exchange_rate, 60],
-                                           [ma_of, 'exchange_ma300', si.exchange_rate, 300],
-                                           [ma_of, 'rate_lg_ma5', si.rate_lg, 5],
-                                           [ma_of, 'rate_lg_ma20', si.rate_lg, 20],
-                                           [ma_of, 'rate_lg_ma60', si.rate_lg, 60],
-                                           [ma_of, 'rate_lg_ma300', si.rate_lg, 300]]
+                                           [scale_of, 'exchange_x0.2', si.rate_lg, 0.2],
+                                           [ma_of, 'exchange_ma5', 'exchange_x0.2', 5],
+                                           [ma_of, 'exchange_ma20', 'exchange_x0.2', 20],
+                                           [ma_of, 'exchange_ma60', 'exchange_x0.2', 60],
+                                           [ma_of, 'exchange_ma300', 'exchange_x0.2', 300],
+                                           [scale_of, 'rate_x100', si.rate_lg, 100],
+                                           [ma_of, 'rate_lg_ma5', 'rate_x100', 5],
+                                           [ma_of, 'rate_lg_ma20', 'rate_x100', 20],
+                                           [ma_of, 'rate_lg_ma60', 'rate_x100', 60],
+                                           [ma_of, 'rate_lg_ma300', 'rate_x100', 300]]
         logger.save_stock_config(stock_config)
         node_amount = 1 + len(stock_config[si.stock_info_list]) + len(stock_config[si.indicator_list])
 
@@ -248,7 +243,12 @@ def run2():
     p.add_reporter(stats)
     p.add_reporter(logger)
 
-    available_code, available_data = stock_data_prepare(dir_sql, stock_config)
+    sql = sqlite3.connect(dir_sql)
+    cursor = sql.cursor()
+    stock_list = get_stock.get_code_list_hs300(cursor, stock_config[si.start_date])
+    stock_list.sort()
+    available_code, available_data = trade_simulate.stock_data_prepare(cursor, stock_list, stock_config)
+    sql.close()
 
     evaler = neat_day_evaler_multi_process(available_data,
                                            stock_config[si.stock_info_list] + trade_simulate.indicator_batch_names(
@@ -261,9 +261,7 @@ def run2():
     print('\nOutput:')
     print(f'winner average profit: {evaler.average_profit(winner, neat_config)}')
 
-    node_names = ['1'] + stock_config[si.stock_info_list] + trade_simulate.indicator_batch_names(stock_config[si.indicator_list])
-    node_names_dict = {0: 'ratio'}
-    node_names_dict.update(dict(zip(range(-1, -len(node_names) - 1, -1), node_names)))
+    node_names_dict = generate_node_names_dict(stock_config)
     neat_visualize.draw_net(neat_config, winner, True, node_names=node_names_dict)
     neat_visualize.plot_stats(stats, ylog=False, view=True)
     neat_visualize.plot_species(stats, view=True)
