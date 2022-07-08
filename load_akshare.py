@@ -138,8 +138,8 @@ def run():
     sql = sqlite3.connect(dir_sql)
     cursor = sql.cursor()
 
-    # load_stock_a(cursor)
-    # load_basic(sql, cursor, '20150401', '20150501')
+    load_stock_a(cursor)
+    load_basic(sql, cursor, '20150401', '20150501')
 
     # stock_index_hist_df = hs300_list_history()
 
