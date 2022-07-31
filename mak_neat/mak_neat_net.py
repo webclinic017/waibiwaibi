@@ -4,17 +4,17 @@ from typing import List, Optional
 
 import turtle
 
-from mak_neat_genome import gene_node, gene_connection, chromosome
+from mak_neat_genome import gene_node, gene_conn, chromosome
 
 
-def is_connection_from_ins(chrom: chromosome, gene_con: gene_connection):
+def is_connection_from_ins(chrom: chromosome, gene_con: gene_conn):
     if gene_con.id < chrom.ins:
         return True
     else:
         return False
 
 
-def is_connection_to_outs(chrom: chromosome, gene_con: gene_connection):
+def is_connection_to_outs(chrom: chromosome, gene_con: gene_conn):
     if chrom.ins <= gene_con.id < chrom.ins + chrom.outs:
         return True
     else:
@@ -30,11 +30,11 @@ def is_connection_to_outs(chrom: chromosome, gene_con: gene_connection):
 # def amount_connect_from(chrom: chromosome, id: int):
 #     return len([x for x in chrom.gen_cons if x.node_from == id])
 
-def nodes_connect_to(chrom: chromosome, id: int) -> List[gene_connection]:
+def nodes_connect_to(chrom: chromosome, id: int) -> List[gene_conn]:
     return [x for x in chrom.gen_cons if x.node_to == id]
 
 
-def nodes_connect_from(chrom: chromosome, id: int) -> List[gene_connection]:
+def nodes_connect_from(chrom: chromosome, id: int) -> List[gene_conn]:
     return [x for x in chrom.gen_cons if x.node_from == id]
 
 
@@ -53,7 +53,7 @@ def gene_node_id(gen_list: List[gene_node], id: int) -> gene_node:
     return None
 
 
-def gene_connect_id(gen_list: List[gene_connection], id: int) -> Optional[gene_connection]:
+def gene_connect_id(gen_list: List[gene_conn], id: int) -> Optional[gene_conn]:
     for gen in gen_list:
         if gen.id == id:
             return gen
@@ -89,7 +89,7 @@ class neat_net:
                 del net[i]
 
         # -- matrixs should be 4-d, every node(2-d) need a 2-d matrix to compute
-        # -- so a level need a 3-d matrix to compute, so the matrixs need to be 4-d for all dimension
+        # -- so a level need a 3-d matrix to compute, so the matrixs need to be 4-d for all levels
         length = len(net)
         width = max([len(x) for x in net])
         matrixs = []
@@ -133,7 +133,7 @@ class neat_net:
 
                 node_id = self.net[i+1][j]
                 node = gene_node_id(self.chrom.gen_nodes, node_id)
-                node.update(node_input)
+                node.forward(node_input)
                 outputs[-1].append(node.output)
 
         return outputs
